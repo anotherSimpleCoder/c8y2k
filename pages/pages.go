@@ -6,21 +6,17 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"os/exec"
 )
 
 func projCheck() error {
-	if currDir, err := os.Getwd(); err != nil {
-		return err
-	} else {
-		if !strings.Contains(currDir, "src") || !strings.Contains(currDir, "modules") {
-			return fmt.Errorf(`
+	if _, err := os.Open("package.json"); err != nil {
+		return fmt.Errorf(`
 You must run c8y2k in a Cumulocity Web SDK project!
 In order to create a new Cumulocity Web SDK project run:
-
-	npx @c8y/cli@latest new
-`)
-		}
+		
+npx @c8y/cli@latest new
+		`)
 	}
 
 	return nil
@@ -36,9 +32,32 @@ c8y2k - A little tool for making Cumulocity apps easier
 	
 	Command:
 		help			Opens this page
+		new				Creates a new Cumulocity Web SDK project
 		new-component		Creates a new Component
 		new-widget		Creates a new widget component
 `
+}
+
+func NewProject() string {
+	fmt.Println("Starting c8y Web SDK....")
+
+	cmd := exec.Command("npx", "@c8y/cli@latest", "new")
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Start()
+	if err != nil {
+		return err.Error()
+	}
+
+	err = cmd.Wait()
+	if err != nil {
+		return err.Error()
+	}
+
+	return ""
 }
 
 func NewComponent() string {

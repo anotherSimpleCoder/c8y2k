@@ -20,6 +20,9 @@ func main() {
 		case arg == "help":
 			content = pages.Help()
 
+		case arg == "new":
+			content = pages.NewProject()
+
 		case arg == "new-component":
 			content = pages.NewComponent()
 
