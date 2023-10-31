@@ -1,16 +1,14 @@
 package pages
 
 import (
-	"bufio"
 	"c8y2k/utils"
 	"fmt"
-	"io"
 	"os"
 	"os/exec"
 )
 
 func projCheck() error {
-	if _, err := os.Open("package.json"); err != nil {
+	if _, err := os.Open("./package.json"); err != nil {
 		return fmt.Errorf(`
 You must run c8y2k in a Cumulocity Web SDK project!
 In order to create a new Cumulocity Web SDK project run:
@@ -32,32 +30,55 @@ c8y2k - A little tool for making Cumulocity apps easier
 	
 	Command:
 		help			Opens this page
-		new				Creates a new Cumulocity Web SDK project
+		new			Creates a new Cumulocity Web SDK project
 		new-component		Creates a new Component
 		new-widget		Creates a new widget component
 `
 }
 
 func NewProject() string {
+	var projName string
+	fmt.Print("Enter your project name: ")
+	if _, err := fmt.Scanln(&projName); err != nil {
+		return err.Error()
+	}
+
 	fmt.Println("Starting c8y Web SDK....")
 
-	cmd := exec.Command("npx", "@c8y/cli@latest", "new")
+	cmd := exec.Command("npx", "@c8y/cli@latest", "new", projName)
 
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Start()
-	if err != nil {
+	if err := cmd.Start(); err != nil {
 		return err.Error()
 	}
 
-	err = cmd.Wait()
-	if err != nil {
+	if err := cmd.Wait(); err != nil {
 		return err.Error()
 	}
 
-	return ""
+	if err := os.Chdir(projName); err != nil {
+		return err.Error()
+	}
+
+	fmt.Println("Running npm install...")
+	cmd = exec.Command("npm", "install")
+
+	cmd.Stdin = os.Stdin
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Start(); err != nil {
+		return err.Error()
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return err.Error()
+	}
+
+	return "Project successfully created"
 }
 
 func NewComponent() string {
@@ -71,13 +92,15 @@ func NewComponent() string {
 		return err.Error()
 	}
 
+	os.Mkdir("src", 0755)
+
 	//Create component folder
-	if err := os.Mkdir(compName, 0755); err != nil {
+	if err := os.Mkdir("src/"+compName, 0755); err != nil {
 		return err.Error()
 	}
 
 	//Create template html
-	if template_html_file, err := os.Create(fmt.Sprintf("%s/%s.component.html", compName, compName)); err != nil {
+	if template_html_file, err := os.Create(fmt.Sprintf("src/%s/%s.component.html", compName, compName)); err != nil {
 		return err.Error()
 	} else {
 		defer template_html_file.Close()
@@ -86,12 +109,12 @@ func NewComponent() string {
 	}
 
 	//Create style css
-	if _, err := os.Create(fmt.Sprintf("%s/%s.component.css", compName, compName)); err != nil {
+	if _, err := os.Create(fmt.Sprintf("src/%s/%s.component.css", compName, compName)); err != nil {
 		return err.Error()
 	}
 
 	//Create component ts
-	if comp_ts_file, err := os.Create(fmt.Sprintf("%s/%s.component.ts", compName, compName)); err != nil {
+	if comp_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.component.ts", compName, compName)); err != nil {
 		return err.Error()
 	} else {
 		defer comp_ts_file.Close()
@@ -113,7 +136,7 @@ export class %sComponent implements OnInit {
 	}
 
 	//Create factory
-	if factory_ts_file, err := os.Create(fmt.Sprintf("%s/%s.factory.ts", compName, compName)); err != nil {
+	if factory_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.factory.ts", compName, compName)); err != nil {
 		return err.Error()
 	} else {
 		defer factory_ts_file.Close()
@@ -137,12 +160,12 @@ export class %sNavigationFactory implements NavigatorNodeFactory {
 	}
 
 	//Create model
-	if _, err := os.Create(fmt.Sprintf("%s/%s.model.ts", compName, compName)); err != nil {
+	if _, err := os.Create(fmt.Sprintf("src/%s/%s.model.ts", compName, compName)); err != nil {
 		return err.Error()
 	}
 
 	//Create module
-	if module_ts_file, err := os.Create(fmt.Sprintf("%s/%s.module.ts", compName, compName)); err != nil {
+	if module_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.module.ts", compName, compName)); err != nil {
 		return err.Error()
 	} else {
 		defer module_ts_file.Close()
@@ -179,7 +202,7 @@ export class %sModule{}
 	}
 
 	//Create service
-	if service_ts_file, err := os.Create(fmt.Sprintf("%s/%s.service.ts", compName, compName)); err != nil {
+	if service_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.service.ts", compName, compName)); err != nil {
 		return err.Error()
 	} else {
 		defer service_ts_file.Close()
@@ -195,29 +218,6 @@ export class %sService {
 		`, utils.AngularString(compName)))
 	}
 
-	//Add dependency to app.module.ts
-	app_module_ts, err := os.OpenFile("app", os.O_RDWR, 0644)
-	if err != nil {
-		return err.Error()
-	}
-
-	defer app_module_ts.Close()
-
-	tmpContent, err := io.ReadAll(app_module_ts)
-	if err != nil {
-		return err.Error()
-	}
-
-	writer := bufio.NewWriter(app_module_ts)
-	if _, err = writer.WriteString(fmt.Sprintf("import {%sModule} from './src/%s/%s.module'\n", utils.AngularString(compName), compName, compName)); err != nil {
-		return err.Error()
-	}
-
-	if _, err = writer.Write(tmpContent); err != nil {
-		return err.Error()
-	}
-
-	writer.Flush()
 	return "Component successfully created!"
 }
 
@@ -232,13 +232,15 @@ func NewWidget() string {
 		return err.Error()
 	}
 
+	os.Mkdir("src", 0755)
+
 	//Create component folder
-	if err := os.Mkdir(widgetName, 0755); err != nil {
+	if err := os.Mkdir("src/"+widgetName, 0755); err != nil {
 		return err.Error()
 	}
 
 	//Create template html
-	if template_html_file, err := os.Create(fmt.Sprintf("%s/%s.component.html", widgetName, widgetName)); err != nil {
+	if template_html_file, err := os.Create(fmt.Sprintf("src/%s/%s.component.html", widgetName, widgetName)); err != nil {
 		return err.Error()
 	} else {
 		defer template_html_file.Close()
@@ -251,12 +253,12 @@ func NewWidget() string {
 	}
 
 	//Create style css
-	if _, err := os.Create(fmt.Sprintf("%s/%s.component.css", widgetName, widgetName)); err != nil {
+	if _, err := os.Create(fmt.Sprintf("src/%s/%s.component.css", widgetName, widgetName)); err != nil {
 		return err.Error()
 	}
 
 	//Create component ts
-	if comp_ts_file, err := os.Create(fmt.Sprintf("%s/%s.component.ts", widgetName, widgetName)); err != nil {
+	if comp_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.component.ts", widgetName, widgetName)); err != nil {
 		return err.Error()
 	} else {
 		defer comp_ts_file.Close()
@@ -280,12 +282,12 @@ export class %sWidgetComponent implements OnInit {
 	}
 
 	//Create model ts
-	if _, err := os.Create(fmt.Sprintf("%s/%s.model.ts", widgetName, widgetName)); err != nil {
+	if _, err := os.Create(fmt.Sprintf("src/%s/%s.model.ts", widgetName, widgetName)); err != nil {
 		return err.Error()
 	}
 
 	//Create module ts
-	if module_ts_file, err := os.Create(fmt.Sprintf("%s/%s.module.ts", widgetName, widgetName)); err != nil {
+	if module_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.module.ts", widgetName, widgetName)); err != nil {
 		return err.Error()
 	} else {
 		defer module_ts_file.Close()
@@ -325,7 +327,7 @@ export class %sWidgetModule{}
 	}
 
 	//Create service ts
-	if service_ts_file, err := os.Create(fmt.Sprintf("%s/%s.service.ts", widgetName, widgetName)); err != nil {
+	if service_ts_file, err := os.Create(fmt.Sprintf("src/%s/%s.service.ts", widgetName, widgetName)); err != nil {
 		return err.Error()
 	} else {
 		defer service_ts_file.Close()
