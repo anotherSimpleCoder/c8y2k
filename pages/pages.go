@@ -7,19 +7,6 @@ import (
 	"os/exec"
 )
 
-func projCheck() error {
-	if _, err := os.Open("./package.json"); err != nil {
-		return fmt.Errorf(`
-You must run c8y2k in a Cumulocity Web SDK project!
-In order to create a new Cumulocity Web SDK project run:
-		
-npx @c8y/cli@latest new
-		`)
-	}
-
-	return nil
-}
-
 func Help() string {
 
 	return `
@@ -82,10 +69,6 @@ func NewProject() string {
 }
 
 func NewComponent() string {
-	if err := projCheck(); err != nil {
-		return err.Error()
-	}
-
 	var compName string
 	fmt.Print("Enter your component name: ")
 	if _, err := fmt.Scanln(&compName); err != nil {
@@ -222,10 +205,6 @@ export class %sService {
 }
 
 func NewWidget() string {
-	if err := projCheck(); err != nil {
-		return err.Error()
-	}
-
 	var widgetName string
 	fmt.Print(("Enter your widget name: "))
 	if _, err := fmt.Scanln(&widgetName); err != nil {
